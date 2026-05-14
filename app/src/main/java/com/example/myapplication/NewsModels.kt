@@ -21,3 +21,17 @@ data class Source(
     val name: String,
     val url: String
 ) : Serializable
+
+data class CountryResponse(
+    val name: CountryName,
+    val cca2: String
+)
+
+data class CountryName(
+    val common: String
+)
+
+data class CountryInfo(
+    val name: String,
+    val code: String
+)

@@ -15,18 +15,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
     private lateinit var newsAdapter: NewsAdapter
-    
-    private val countries = mapOf(
-        "United States" to "us",
-        "Pakistan" to "pk",
-        "United Kingdom" to "gb",
-        "India" to "in",
-        "Saudi Arabia" to "sa",
-        "UAE" to "ae"
-    )
+
+    private val countryList = mutableListOf<CountryInfo>()
 
     private val categories = listOf(
-        "general", "world", "nation", "business", "technology", 
+        "general", "world", "nation", "business", "technology",
         "entertainment", "sports", "science", "health"
     )
 
@@ -43,9 +36,6 @@ class MainActivity : AppCompatActivity() {
         binding.btnRefresh.setOnClickListener {
             refreshNews()
         }
-        
-        // Initial fetch
-        refreshNews()
     }
 
     private fun setupRecyclerView() {
@@ -61,25 +51,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSpinners() {
-        // Country Spinner
-        val countryAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, countries.keys.toList())
-        countryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.countrySpinner.adapter = countryAdapter
-
-        // Category Spinner
+        // Category Spinner (static)
         val categoryAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, categories)
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         binding.categorySpinner.adapter = categoryAdapter
 
         val itemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                refreshNews()
+                if (countryList.isNotEmpty()) {
+                    refreshNews()
+                }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
         binding.countrySpinner.onItemSelectedListener = itemSelectedListener
         binding.categorySpinner.onItemSelectedListener = itemSelectedListener
+    }
+
+    private fun updateCountrySpinner(countries: List<CountryInfo>) {
+        countryList.clear()
+        countryList.addAll(countries)
+
+        val countryNames = countries.map { it.name }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, countryNames)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.countrySpinner.adapter = adapter
+
+        // Automatically fetch news for first country
+        if (countries.isNotEmpty()) {
+            refreshNews()
+        }
     }
 
     private fun setupSearch() {
@@ -92,7 +94,7 @@ class MainActivity : AppCompatActivity() {
                 false
             }
         }
-        
+
         binding.searchLayout.setEndIconOnClickListener {
             val query = binding.searchEditText.text.toString()
             viewModel.searchNews(query)
@@ -100,13 +102,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshNews() {
-        val countryName = binding.countrySpinner.selectedItem?.toString() ?: "United States"
-        val countryCode = countries[countryName] ?: "us"
+        val countryName = binding.countrySpinner.selectedItem?.toString()
+        val countryCode = countryList.find { it.name == countryName }?.code ?: "us"
         val category = binding.categorySpinner.selectedItem?.toString() ?: "general"
         viewModel.fetchTopHeadlines(countryCode, category)
     }
 
     private fun observeViewModel() {
+        viewModel.countries.observe(this) { countries ->
+            if (countries.isNotEmpty()) {
+                updateCountrySpinner(countries)
+            }
+        }
+
         viewModel.articles.observe(this) { articles ->
             newsAdapter.setArticles(articles)
         }
